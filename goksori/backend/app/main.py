@@ -58,7 +58,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.debug else ["https://yourdomain.com"],
+    allow_origins=["*"],  # 실무에서는 구체적인 도메인 지정을 권장하지만, 현재 문제를 해결하기 위해 우선 모두 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

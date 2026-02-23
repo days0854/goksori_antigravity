@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import logging
+from contextlib import asynccontextmanager
 
 from .config import get_settings
 
@@ -14,12 +15,44 @@ settings = get_settings()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ─── 스케줄러 설정 ─────────────────────────────────────────────────────────────
+from apscheduler.schedulers.background import BackgroundScheduler
+from .tasks.stocks_task import run_update
+
+scheduler = BackgroundScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 시작 시 실행
+    logger.info("🚀 애플리케이션 시작...")
+    
+    if settings.app_env == "production" or True: # 테스트를 위해 일단 항상 활성화
+        logger.info(f"⏰ 스케줄러 가동: {settings.crawl_interval_hours}시간 간격")
+        scheduler.add_job(
+            run_update, 
+            "interval", 
+            hours=settings.crawl_interval_hours,
+            id="stocks_update",
+            replace_existing=True
+        )
+        # 서버 시작 시 즉시 한 번 실행 (데이터가 없을 수 있으므로)
+        # scheduler.add_job(run_update, "date", run_date=datetime.now() + timedelta(seconds=10))
+        scheduler.start()
+    
+    yield
+    
+    # 종료 시 실행
+    logger.info("🛑 애플리케이션 종료...")
+    if scheduler.running:
+        scheduler.shutdown()
+
 # ─── FastAPI 앱 초기화 ────────────────────────────────────────────────────────
 app = FastAPI(
     title=settings.app_name,
     description="코스피200 종목 감성분석 기반 매매 시그널 서비스",
     version="0.1.0",
     docs_url="/api/docs" if settings.debug else None,
+    lifespan=lifespan,
 )
 
 # CORS 설정

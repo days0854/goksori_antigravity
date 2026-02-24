@@ -152,8 +152,8 @@ class RuleBasedSentimentAnalyzer:
         score = (pos_score * negation_factor) - neg_score
         
         # 보정: ㅋㅋ/ㅎㅎ 등 긍정적 뉘앙스
-        laugh_count = len(re.findall(r"ㅋㅋ|ㅎㅎ", text))
-        cry_count = len(re.findall(r"ㅠㅠ|ㅜㅜ|ㅡㅡ", text))
+        laugh_count = text.count("ㅋㅋ") + text.count("ㅎㅎ")
+        cry_count = text.count("ㅠㅠ") + text.count("ㅜㅜ") + text.count("ㅡㅡ")
         score += min(laugh_count * 0.1, 0.3)
         score -= min(cry_count * 0.1, 0.3)
 

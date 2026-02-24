@@ -63,21 +63,41 @@ class Kospi200Manager:
             return KOSPI200_SAMPLE
 
     def _fetch_from_naver(self) -> list[StockInfo]:
-        """네이버에서 코스피 200 종목 목록 크롤링"""
+        """네이버에서 코스피 200 종목 목록 크롤링 (전체 20페이지)"""
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = requests.get(self.NAVER_KOSPI200_URL, headers=headers, timeout=10)
-        response.encoding = "euc-kr"
-        soup = BeautifulSoup(response.text, "lxml")
-
+        
         stocks = []
-        # 네이버 구성종목 테이블 파싱
-        for link in soup.find_all("a", href=lambda h: h and "code=" in h):
-            code = link["href"].split("code=")[-1].strip()
-            name = link.get_text(strip=True)
-            if code and name and len(code) == 6 and code.isdigit():
-                stocks.append(StockInfo(code=code, name=name))
+        # 코스피 200은 보통 20페이지까지 있음 (페이지당 10개)
+        for page in range(1, 21):
+            url = f"{self.NAVER_KOSPI200_URL}&page={page}"
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                response.encoding = "euc-kr"
+                soup = BeautifulSoup(response.text, "lxml")
 
-        logger.info(f"코스피200 {len(stocks)}개 종목 조회")
+                # 네이버 구성종목 테이블 파싱 (iframe 내부 구조 고려)
+                found_in_page = 0
+                for link in soup.find_all("a", href=lambda h: h and "code=" in h):
+                    # 종목명 클릭 시 이동하는 링크에서 코드 추출
+                    code = link["href"].split("code=")[-1].strip()
+                    name = link.get_text(strip=True)
+                    
+                    if code and name and len(code) == 6 and code.isdigit():
+                        # 중복 제거 및 유효성 검사
+                        if not any(s.code == code for s in stocks):
+                            stocks.append(StockInfo(code=code, name=name))
+                            found_in_page += 1
+                
+                if found_in_page == 0: # 더 이상 종목이 없으면 중단
+                    break
+                    
+                logger.info(f"페이지 {page} 조회 완료 ({found_in_page}개 추출)")
+                
+            except Exception as e:
+                logger.error(f"페이지 {page} 조회 중 오류: {e}")
+                continue
+
+        logger.info(f"코스피200 {len(stocks)}개 종목 조회 완료")
         return stocks if stocks else KOSPI200_SAMPLE

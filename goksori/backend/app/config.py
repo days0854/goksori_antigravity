@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-key"
 
     # Database
-    database_url: str = "postgresql://user:password@localhost:5432/goksori_db"
+    database_url: str = "sqlite:///./goksori.db"
 
     # Crawler
     crawl_interval_hours: int = 4

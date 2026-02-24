@@ -10,6 +10,11 @@ import logging
 from contextlib import asynccontextmanager
 
 from .config import get_settings
+from .db.session import engine
+from .models.base import Base
+# 모든 모델을 임포트하여 Base.metadata에 등록되도록 함
+from .models.stock import Stock, Comment, SentimentScore, CommentSentiment
+import datetime
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +32,9 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 애플리케이션 시작...")
     
     if settings.app_env == "production" or True: # 테스트를 위해 일단 항상 활성화
+        logger.info("🛠️ 데이터베이스 테이블 생성/확인 중...")
+        Base.metadata.create_all(bind=engine)
+        
         logger.info(f"⏰ 스케줄러 가동: {settings.crawl_interval_hours}시간 간격")
         scheduler.add_job(
             run_update, 
@@ -35,8 +43,13 @@ async def lifespan(app: FastAPI):
             id="stocks_update",
             replace_existing=True
         )
-        # 서버 시작 시 즉시 한 번 실행 (데이터가 없을 수 있으므로)
-        # scheduler.add_job(run_update, "date", run_date=datetime.now() + timedelta(seconds=10))
+        # 서버 시작 시 즉시 한 번 실행 (데이터가 없을 수 있으므로 10초 뒤 실행)
+        scheduler.add_job(
+            run_update, 
+            "date", 
+            run_date=datetime.datetime.now() + datetime.timedelta(seconds=10),
+            id="stocks_update_initial"
+        )
         scheduler.start()
     
     yield

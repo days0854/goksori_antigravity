@@ -1,0 +1,68 @@
+name: Deploy to NCP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p 22 223.130.136.16 >> ~/.ssh/known_hosts
+
+      - name: Compress and Upload
+        run: |
+          tar --exclude='__pycache__' \
+              --exclude='.pytest_cache' \
+              --exclude='.venv' \
+              --exclude='venv' \
+              --exclude='goksori-deploy.tar.gz' \
+              -czf goksori-deploy.tar.gz backend frontend docs scripts config
+          
+          # Use scp with private key
+          scp -v -P 22 goksori-deploy.tar.gz root@223.130.136.16:/tmp/goksori-deploy.tar.gz
+
+      - name: Deploy on Server
+        run: |
+          ssh -v -p 22 root@223.130.136.16 "
+            # 1. Extract files
+            mkdir -p /home/goksori
+            cd /home/goksori
+            tar -xzf /tmp/goksori-deploy.tar.gz
+            
+            # 2. Update environment (Ensure SQLite)
+            mkdir -p /home/goksori/backend/config
+            if [ ! -f /home/goksori/backend/config/.env ]; then
+              cat > /home/goksori/backend/config/.env << EOF
+DATABASE_URL=sqlite:///./goksori.db
+APP_NAME=곡소리매매법
+APP_ENV=production
+DEBUG=false
+CRAWL_INTERVAL_HOURS=4
+MAX_COMMENTS_PER_STOCK=100
+REQUEST_DELAY_SECONDS=1
+EOF
+            else
+              sed -i 's|DATABASE_URL=.*|DATABASE_URL=sqlite:///./goksori.db|' /home/goksori/backend/config/.env
+            fi
+            
+            # 3. Setup Python and Restart
+            cd /home/goksori/backend
+            python3 -m venv venv || true
+            source venv/bin/activate
+            pip install -r requirements.txt
+            
+            # 4. Restart Service
+            systemctl daemon-reload
+            systemctl restart goksori
+            systemctl status goksori --no-pager
+          "

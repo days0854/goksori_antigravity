@@ -32,7 +32,7 @@ class NaverDiscussCrawler:
     URL: https://finance.naver.com/item/board.naver?code={stock_code}
     """
 
-    BASE_URL = "https://finance.naver.com/item/board.naver"
+    BASE_URL = "https://finance.naver.com/item/board.nhn"
     HEADERS = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -110,9 +110,14 @@ class NaverDiscussCrawler:
         if not table:
             return comments
 
-        rows = table.find_all("tr", class_=lambda x: x and "bg" in x)
-
+        # BeautifulSoup select(tr) that has a td with class='title'
+        rows = table.find_all("tr")
+        
         for row in rows:
+            # Check if it's a valid data row (has title cell)
+            if not row.find("td", class_="title"):
+                continue
+                
             comment = self._parse_row(row, stock_code, url)
             if comment:
                 comments.append(comment)

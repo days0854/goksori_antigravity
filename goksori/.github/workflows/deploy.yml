@@ -34,32 +34,32 @@ jobs:
       - name: Deploy on Server
         run: |
           ssh -v -p 22 root@223.130.136.16 "
-            # 1. Extract files
-            mkdir -p /home/goksori
-            cd /home/goksori
+            # 1. Extract files to the correct application root
+            mkdir -p /home/goksori/backend/goksori
+            cd /home/goksori/backend/goksori
             tar -xzf /tmp/goksori-deploy.tar.gz
             
             # 2. Update environment (Ensure SQLite)
-            mkdir -p /home/goksori/backend/config
-            if [ ! -f /home/goksori/backend/config/.env ]; then
-              cat > /home/goksori/backend/config/.env << EOF
-DATABASE_URL=sqlite:///./goksori.db
-APP_NAME=곡소리매매법
-APP_ENV=production
-DEBUG=false
-CRAWL_INTERVAL_HOURS=4
-MAX_COMMENTS_PER_STOCK=100
-REQUEST_DELAY_SECONDS=1
-EOF
+            mkdir -p /home/goksori/backend/goksori/backend/config
+            if [ ! -f /home/goksori/backend/goksori/backend/config/.env ]; then
+              cat > /home/goksori/backend/goksori/backend/config/.env << EOF
+            DATABASE_URL=sqlite:///./goksori.db
+            APP_NAME=곡소리매매법
+            APP_ENV=production
+            DEBUG=false
+            CRAWL_INTERVAL_HOURS=4
+            MAX_COMMENTS_PER_STOCK=100
+            REQUEST_DELAY_SECONDS=1
+            EOF
             else
-              sed -i 's|DATABASE_URL=.*|DATABASE_URL=sqlite:///./goksori.db|' /home/goksori/backend/config/.env
+              sed -i 's|DATABASE_URL=.*|DATABASE_URL=sqlite:///./goksori.db|' /home/goksori/backend/goksori/backend/config/.env
             fi
             
             # 3. Setup Python and Restart
-            cd /home/goksori/backend
-            python3 -m venv venv || true
-            source venv/bin/activate
-            pip install -r requirements.txt
+            cd /home/goksori/backend/goksori/backend
+            # Use the existing venv outside the repo if nested structure is complex
+            # Or ensure the one in /home/goksori/backend/venv is used as per service
+            /home/goksori/backend/venv/bin/python -m pip install -r requirements.txt
             
             # 4. Restart Service
             systemctl daemon-reload

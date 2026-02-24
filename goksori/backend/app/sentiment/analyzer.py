@@ -12,9 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class SentimentLabel(str, Enum):
+    VERY_POSITIVE = "very_positive"
     POSITIVE = "positive"
-    NEGATIVE = "negative"
     NEUTRAL = "neutral"
+    NEGATIVE = "negative"
+    VERY_NEGATIVE = "very_negative"
 
 
 @dataclass
@@ -26,13 +28,13 @@ class SentimentResult:
 
     @property
     def emoji(self) -> str:
-        if self.normalized_score >= 70:
+        if self.label == SentimentLabel.VERY_POSITIVE:
             return "🔥"
-        elif self.normalized_score >= 55:
+        elif self.label == SentimentLabel.POSITIVE:
             return "📈"
-        elif self.normalized_score >= 45:
+        elif self.label == SentimentLabel.NEUTRAL:
             return "😐"
-        elif self.normalized_score >= 30:
+        elif self.label == SentimentLabel.NEGATIVE:
             return "📉"
         else:
             return "💀"
@@ -57,20 +59,24 @@ class SentimentResult:
 STRONG_POSITIVE = [
     "급등", "폭등", "상한가", "대박", "매수", "강추", "올라간다", "오른다",
     "ㄱㄷ", "기대", "호재", "실적개선", "흑자전환", "신고가", "돌파",
-    "저평가", "매집", "수급좋음", "외인매수", "기관매수",
+    "저평가", "매집", "수급좋음", "외인매수", "기관매수", "가즈아", "떡상",
+    "무조건사라", "풀매수", "익절", "점상", "따상", "대세상승", "황금주",
 ]
 WEAK_POSITIVE = [
     "좋아", "좋은", "상승", "오를것", "긍정", "기회", "저점", "반등",
-    "회복", "괜찮", "성장", "수익", "배당", "안전", "추천",
+    "회복", "괜찮", "성장", "수익", "배당", "안전", "추천", "홀딩",
+    "버티자", "추미", "분할매수", "수급개선", "우상향", "줍줍",
 ]
 STRONG_NEGATIVE = [
     "급락", "폭락", "하한가", "손절", "망했", "팔아라", "폭탄", "쓰레기",
     "사기", "악재", "적자", "파산", "부도", "관리종목", "상장폐지", "쓰레기",
-    "먹튀", "작전", "개잡주",
+    "먹튀", "작전", "개잡주", "탈출은지능순", "한강", "부도", "구속", "폐지",
+    "주가조작", "개작전", "사장죽어라", "대표죽어라", "상폐", "떡락", "지옥",
 ]
 WEAK_NEGATIVE = [
     "하락", "내려", "부정", "걱정", "위험", "손실", "불안", "힘들",
-    "나쁜", "문제", "우려", "주의", "조심",
+    "나쁜", "문제", "우려", "주의", "조심", "에휴", "시초가가 종가",
+    "물렸다", "구조대", "설거지", "고점", "거품", "관망", "반등실패",
 ]
 NEGATION_WORDS = ["안", "못", "없", "아니", "절대", "결코", "전혀"]
 
@@ -78,8 +84,6 @@ NEGATION_WORDS = ["안", "못", "없", "아니", "절대", "결코", "전혀"]
 class RuleBasedSentimentAnalyzer:
     """
     규칙 기반 한국어 주식 감성분석기
-    - 빠르고 가볍게 동작
-    - 딥러닝 모델 대비 정확도 낮지만 인프라 비용 없음
     """
 
     def __init__(self):
@@ -90,12 +94,6 @@ class RuleBasedSentimentAnalyzer:
         self.negations = set(NEGATION_WORDS)
 
     def analyze(self, text: str) -> SentimentResult:
-        """
-        텍스트 감성분석
-
-        Returns:
-            SentimentResult
-        """
         if not text or not text.strip():
             return SentimentResult(
                 score=0.0,
@@ -107,7 +105,9 @@ class RuleBasedSentimentAnalyzer:
         text = self._preprocess(text)
         score = self._calculate_score(text)
         label = self._score_to_label(score)
-        confidence = min(abs(score) * 1.5 + 0.3, 1.0)
+        
+        # 쏠림 현상 방지를 위해 스코어에 따라 confidence 조정
+        confidence = min(abs(score) * 1.2 + 0.3, 1.0)
         normalized = self._normalize_score(score)
 
         return SentimentResult(
@@ -118,43 +118,62 @@ class RuleBasedSentimentAnalyzer:
         )
 
     def _preprocess(self, text: str) -> str:
-        """전처리: 특수문자 제거, 소문자화"""
+        """전처리: 특수문자 제거, 소문자화, 공백 정규화"""
         text = re.sub(r"[^\w\s가-힣]", " ", text)
+        text = re.sub(r"\s+", " ", text)
         return text.strip()
 
     def _calculate_score(self, text: str) -> float:
-        """감성 점수 계산"""
+        """감성 점수 계산 (-1.0 ~ 1.0)"""
         score = 0.0
+        
+        # 단어별 점수 합산
+        pos_score = 0
+        neg_score = 0
 
-        # 부정어 체크
+        # 부정어 변수
         has_negation = any(neg in text for neg in self.negations)
-        negation_factor = -0.7 if has_negation else 1.0
+        negation_factor = -0.8 if has_negation else 1.0
 
         for word in self.strong_pos:
             if word in text:
-                score += 0.8 * negation_factor
+                pos_score += 1.0
         for word in self.weak_pos:
             if word in text:
-                score += 0.3 * negation_factor
+                pos_score += 0.4
         for word in self.strong_neg:
             if word in text:
-                score -= 0.8
+                neg_score += 1.0
         for word in self.weak_neg:
             if word in text:
-                score -= 0.3
+                neg_score += 0.4
 
-        # 이모티콘 보정
-        if "ㅋㅋ" in text or "ㅎㅎ" in text:
-            score += 0.1
-        if "ㅠㅠ" in text or "ㅜㅜ" in text:
-            score -= 0.1
+        # 부정어 결합 및 최종 점수 산출
+        score = (pos_score * negation_factor) - neg_score
+        
+        # 보정: ㅋㅋ/ㅎㅎ 등 긍정적 뉘앙스
+        laugh_count = len(re.findall(r"ㅋㅋ|ㅎㅎ", text))
+        cry_count = len(re.findall(r"ㅠㅠ|ㅜㅜ|ㅡㅡ", text))
+        score += min(laugh_count * 0.1, 0.3)
+        score -= min(cry_count * 0.1, 0.3)
 
-        return max(-1.0, min(1.0, score))
+        # 정규화 (-1 ~ 1)
+        # 단순히 합산하면 범위를 벗어날 수 있으므로 tanh 스타일이나 tanh 직접 사용
+        import math
+        # 0.5 정도의 기울기로 조정
+        score = math.tanh(score * 0.5)
+
+        return score
 
     def _score_to_label(self, score: float) -> SentimentLabel:
-        if score > 0.15:
+        """5단계 분류"""
+        if score > 0.5:
+            return SentimentLabel.VERY_POSITIVE
+        elif score > 0.1:
             return SentimentLabel.POSITIVE
-        elif score < -0.15:
+        elif score < -0.5:
+            return SentimentLabel.VERY_NEGATIVE
+        elif score < -0.1:
             return SentimentLabel.NEGATIVE
         return SentimentLabel.NEUTRAL
 

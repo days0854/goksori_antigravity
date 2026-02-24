@@ -43,18 +43,18 @@ class NaverDiscussCrawler:
         "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8",
     }
 
-    def __init__(self, delay: float = 1.0, max_pages: int = 5):
+    def __init__(self, delay: float = 0.5, max_pages: int = 25):
         """
         Args:
             delay: 요청 간 딜레이 (초) - 서버 부하 방지
-            max_pages: 최대 크롤링 페이지 수
+            max_pages: 최대 크롤링 페이지 수 (페이지당 약 20개, 25페이지 = 500개)
         """
         self.delay = delay
         self.max_pages = max_pages
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
 
-    def get_comments(self, stock_code: str, max_comments: int = 100) -> list[CommentData]:
+    def get_comments(self, stock_code: str, max_comments: int = 500) -> list[CommentData]:
         """
         특정 종목의 토론방 댓글 수집
 
@@ -94,7 +94,10 @@ class NaverDiscussCrawler:
         try:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
-            response.encoding = "euc-kr"
+            
+            # 네이버 금융은 페이지별로 EUC-KR과 UTF-8이 혼재되어 있어 자동 감지 사용
+            response.encoding = response.apparent_encoding
+            
             return self._parse_comments(response.text, stock_code, url)
         except requests.RequestException as e:
             logger.error(f"HTTP 요청 실패 {url}: {e}")

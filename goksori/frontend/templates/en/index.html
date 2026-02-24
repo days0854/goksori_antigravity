@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Goksori Trading Method - KOSPI 200 Sentiment Analysis">
+  <title>Goksori Index | KOSPI 200 Market Sentiment</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body class="dark-theme">
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-icon">📢</span>
+      <span class="logo-text">Goksori <span class="logo-accent">Index</span></span>
+      <span class="logo-sub">KOSPI 200 Sentiment</span>
+    </div>
+    <nav class="header-nav">
+      <button class="nav-btn active" data-sort="goksori_desc">Goksori Rank</button>
+      <button class="nav-btn" data-sort="goksori_asc">Stability Rank</button>
+      <button class="nav-btn" data-sort="name">Name</button>
+    </nav>
+    <div class="header-right">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search Symbol/Code">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div class="update-info">
+        <span class="update-dot"></span>
+        <span id="lastUpdate">Updating...</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="hero-section">
+  <div class="hero-content">
+    <h1 class="hero-title">Buy when there's blood in the streets</h1>
+    <p class="hero-subtitle">Even if the blood is your own</p>
+    <div class="hero-accent">— Warren Buffett</div>
+  </div>
+</section>
+
+<section class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-val" id="statTotal">-</span>
+    <span class="stat-label">Stock Tracked</span>
+  </div>
+  <div class="stat-item hot">
+    <span class="stat-val" id="statHot">-</span>
+    <span class="stat-label">🔥 Hot Signals</span>
+  </div>
+  <div class="stat-item cold">
+    <span class="stat-val" id="statCold">-</span>
+    <span class="stat-label">💀 Bear Signals</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-val" id="statAvg">-</span>
+    <span class="stat-label">Avg Index Score</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-val" id="statNextUpdate">-</span>
+    <span class="stat-label">Next Update</span>
+  </div>
+</section>
+
+<main class="main-content">
+  <div class="grid-header">
+    <div class="col-header">Stock Status</div>
+    <div class="col-header">Index Score</div>
+    <div class="col-header">Trend/Grade</div>
+    <div class="col-header">Share</div>
+  </div>
+
+  <div id="loadingState" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading Sentiment Data...</p>
+  </div>
+
+  <div id="stockGrid" class="stock-grid" style="display:none;"></div>
+
+  <div class="pagination" id="pagination" style="display:none;">
+    <button id="btnPrev" class="page-btn" disabled>◀ Prev</button>
+    <span id="pageInfo" class="page-info"></span>
+    <button id="btnNext" class="page-btn">Next ▶</button>
+  </div>
+</main>
+
+<div id="stockModal" class="modal">
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <span id="modalEmoji" class="modal-emoji"></span>
+        <span id="modalName" class="modal-title"></span>
+        <span id="modalCode" class="modal-code"></span>
+      </div>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="comments">Sentiment</button>
+      <button class="tab-btn" data-tab="chart">Trend</button>
+      <button class="tab-btn" data-tab="dart">Filings</button>
+    </div>
+
+    <div class="tab-content active" id="tab-overview">
+      <div class="score-display">
+        <div class="score-big" id="modalScore">-</div>
+        <div class="score-sub">Sentiment Index</div>
+      </div>
+      <div class="overview-stats">
+        <div class="ov-item"> <span class="ov-label">Grade</span> <span class="ov-val" id="modalGrade">-</span> </div>
+        <div class="ov-item"> <span class="ov-label">Bullish</span> <span class="ov-val positive" id="modalPos">-</span> </div>
+        <div class="ov-item"> <span class="ov-label">Bearish</span> <span class="ov-val negative" id="modalNeg">-</span> </div>
+        <div class="ov-item"> <span class="ov-label">Neutral</span> <span class="ov-val" id="modalNeu">-</span> </div>
+        <div class="ov-item"> <span class="ov-label">Total</span> <span class="ov-val" id="modalTotal">-</span> </div>
+        <div class="ov-item"> <span class="ov-label">Change</span> <span class="ov-val" id="modalChange">-</span> </div>
+      </div>
+      <div class="mini-bar-wrap">
+        <div class="mini-bar-label">Bullish</div> <div class="mini-bar"><div class="mini-bar-fill positive" id="barPos"></div></div>
+        <div class="mini-bar-label">Bearish</div> <div class="mini-bar"><div class="mini-bar-fill negative" id="barNeg"></div></div>
+        <div class="mini-bar-label">Neutral</div> <div class="mini-bar"><div class="mini-bar-fill neutral" id="barNeu"></div></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-comments"> <div id="commentList" class="comment-list"></div> </div>
+    <div class="tab-content" id="tab-chart"> <canvas id="scoreChart" height="220"></canvas> </div>
+    <div class="tab-content" id="tab-dart">
+      <div class="dart-info">
+        <p>📋 Latest DART Fillings</p>
+        <iframe id="dartFrame" src="about:blank" class="dart-frame"></iframe>
+        <a id="dartLink" href="#" target="_blank" class="dart-external-btn">View on DART ↗</a>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="share-btn kakao-btn" id="modalKakaoShare">Kakao Share</button>
+      <button class="share-btn link-btn" id="modalLinkShare">Copy Link</button>
+      <button class="share-btn naver-btn" id="modalNaverLink">Naver Board</button>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="footer-disclaimer">
+      ⚠️ This service is for informational purposes only and <strong>is not investment advice.</strong>
+    </p>
+    <div class="footer-lang">
+      <a href="/" class="lang-btn">한국어</a>
+      <a href="/en" class="lang-btn active">English</a>
+    </div>
+  </div>
+</footer>
+
+<script>const KAKAO_JS_KEY = "{{ kakao_js_key }}";</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

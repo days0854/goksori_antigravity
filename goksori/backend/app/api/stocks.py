@@ -175,5 +175,5 @@ async def get_stock_detail(stock_code: str, db: Session = Depends(get_db)):
         "comments": formatted_comments,
         "score_history": score_history,
         "sources": ["naver_discuss"],
-        "dart_url": f"https://dart.fss.or.kr/dsearch/main.do?rcpNo=&textCrpCik={stock_code}",
+        "dart_url": f"https://dart.fss.or.kr/ds/search.do?textCrpNm={stock_code}",
     }

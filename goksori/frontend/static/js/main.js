@@ -59,7 +59,10 @@ const Utils = {
   },
 
   trendLabel(trend) {
-    const map = { up: '📈 상승', down: '📉 하락', neutral: '➡️ 중립' };
+    const isEn = document.documentElement.lang === 'en';
+    const map = isEn
+      ? { up: '📈 Up', down: '📉 Down', neutral: '➡️ Neutral' }
+      : { up: '📈 상승', down: '📉 하락', neutral: '➡️ 중립' };
     return map[trend] || trend;
   },
 
@@ -77,11 +80,12 @@ const Utils = {
   formatTime(iso) {
     try {
       const d = new Date(iso);
-      return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+      return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     } catch { return '-'; }
   },
 
   nextUpdateTime() {
+    const isEn = document.documentElement.lang === 'en';
     const now = new Date();
     const nextHour = Math.ceil(now.getHours() / 4) * 4;
     const next = new Date(now);
@@ -90,6 +94,10 @@ const Utils = {
     const diff = Math.round((next - now) / 60000);
     const h = Math.floor(diff / 60);
     const m = diff % 60;
+
+    if (isEn) {
+      return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+    }
     return h > 0 ? `${h}시간 ${m}분 후` : `${m}분 후`;
   },
 
@@ -111,7 +119,7 @@ const Render = {
   stockRow(stock, rank) {
     const scoreClass = Utils.goksoriColor(stock.goksori_score);
     const trendClass = Utils.trendClass(stock.trend);
-    const rankClass  = rank <= 3 ? `rank-${rank}` : '';
+    const rankClass = rank <= 3 ? `rank-${rank}` : '';
 
     return `
     <div class="stock-row ${rankClass}" data-code="${stock.code}" data-name="${stock.name}">
@@ -142,7 +150,7 @@ const Render = {
       <div class="col-share">
         <button class="share-mini-btn" data-code="${stock.code}" data-name="${stock.name}"
                 onclick="event.stopPropagation(); KakaoShare.shareStock('${stock.code}')">
-          💬 공유
+          ${document.documentElement.lang === 'en' ? '💬 Share' : '💬 공유'}
         </button>
       </div>
     </div>`;
@@ -151,7 +159,8 @@ const Render = {
   stockGrid(stocks) {
     const grid = document.getElementById('stockGrid');
     if (!stocks.length) {
-      grid.innerHTML = '<div class="loading-state"><p>검색 결과가 없습니다</p></div>';
+      const msg = document.documentElement.lang === 'en' ? 'No results found' : '검색 결과가 없습니다';
+      grid.innerHTML = `<div class="loading-state"><p>${msg}</p></div>`;
     } else {
       grid.innerHTML = stocks
         .map((s, i) => Render.stockRow(s, (State.currentPage - 1) * State.pageSize + i + 1))
@@ -165,19 +174,18 @@ const Render = {
   },
 
   statsBar(stocks, total) {
-    const hot  = stocks.filter(s => s.goksori_score >= 70).length;
-    const cold = stocks.filter(s => s.goksori_score <= 30).length;
-    const avg  = stocks.length
-      ? (stocks.reduce((a, s) => a + s.goksori_score, 0) / stocks.length).toFixed(1)
-      : '-';
+    const isEn = document.documentElement.lang === 'en';
+    const langSuffix = isEn ? '' : '개';
+    const scoreSuffix = isEn ? ' pts' : '점';
 
     document.getElementById('statTotal').textContent = total;
-    document.getElementById('statHot').textContent   = `${hot}개`;
-    document.getElementById('statCold').textContent  = `${cold}개`;
-    document.getElementById('statAvg').textContent   = `${avg}점`;
+    document.getElementById('statHot').textContent = `${hot}${langSuffix}`;
+    document.getElementById('statCold').textContent = `${cold}${langSuffix}`;
+    document.getElementById('statAvg').textContent = `${avg}${scoreSuffix}`;
     document.getElementById('statNextUpdate').textContent = Utils.nextUpdateTime();
-    document.getElementById('lastUpdate').textContent =
-      `${new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})} 업데이트`;
+
+    const timeStr = new Date().toLocaleTimeString(isEn ? 'en-US' : 'ko-KR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('lastUpdate').textContent = isEn ? `Updated at ${timeStr}` : `${timeStr} 업데이트`;
   },
 
   pagination(total, page, size) {
@@ -204,14 +212,14 @@ async function loadStocks() {
     );
 
     State.totalStocks = data.total;
-    State.allStocks   = data.stocks;
+    State.allStocks = data.stocks;
 
     Render.stockGrid(data.stocks);
     Render.statsBar(data.stocks, data.total);
     Render.pagination(data.total, State.currentPage, State.pageSize);
 
     document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('stockGrid').style.display    = 'flex';
+    document.getElementById('stockGrid').style.display = 'flex';
 
   } catch (err) {
     document.getElementById('loadingState').innerHTML =
@@ -271,8 +279,8 @@ const Modal = {
     document.body.style.overflow = 'hidden';
 
     // 로딩 상태 초기화
-    document.getElementById('modalName').textContent  = name || code;
-    document.getElementById('modalCode').textContent  = code;
+    document.getElementById('modalName').textContent = name || code;
+    document.getElementById('modalCode').textContent = code;
     document.getElementById('modalEmoji').textContent = '⏳';
     document.getElementById('modalScore').textContent = '-';
 
@@ -294,8 +302,8 @@ const Modal = {
 
   populate(data) {
     // 헤더
-    document.getElementById('modalName').textContent  = data.name;
-    document.getElementById('modalCode').textContent  = `(${data.code})`;
+    document.getElementById('modalName').textContent = data.name;
+    document.getElementById('modalCode').textContent = `(${data.code})`;
 
     // 점수 (색상)
     const scoreEl = document.getElementById('modalScore');
@@ -304,16 +312,16 @@ const Modal = {
 
     // 개요 통계
     document.getElementById('modalGrade').textContent = data.goksori_grade;
-    document.getElementById('modalPos').textContent   = `${data.positive_count}개`;
-    document.getElementById('modalNeg').textContent   = `${data.negative_count}개`;
-    document.getElementById('modalNeu').textContent   = `${data.neutral_count}개`;
+    document.getElementById('modalPos').textContent = `${data.positive_count}개`;
+    document.getElementById('modalNeg').textContent = `${data.negative_count}개`;
+    document.getElementById('modalNeu').textContent = `${data.neutral_count}개`;
     document.getElementById('modalTotal').textContent = `${data.total_count}개`;
 
     // 미니 바
     if (data.total_count > 0) {
       document.getElementById('barPos').style.width = `${(data.positive_count / data.total_count * 100).toFixed(1)}%`;
       document.getElementById('barNeg').style.width = `${(data.negative_count / data.total_count * 100).toFixed(1)}%`;
-      document.getElementById('barNeu').style.width = `${(data.neutral_count  / data.total_count * 100).toFixed(1)}%`;
+      document.getElementById('barNeu').style.width = `${(data.neutral_count / data.total_count * 100).toFixed(1)}%`;
     }
 
     // 댓글

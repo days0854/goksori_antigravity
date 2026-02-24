@@ -109,6 +109,19 @@ async def index(request: Request):
     )
 
 
+@app.get("/en")
+async def index_en(request: Request):
+    return templates.TemplateResponse(
+        "en/index.html",
+        {
+            "request": request,
+            "title": "Goksori Index - Market Sentiment",
+            "adsense_client_id": settings.adsense_client_id,
+            "kakao_js_key": settings.kakao_js_key,
+        },
+    )
+
+
 @app.get("/stock/{stock_code}")
 async def stock_detail(request: Request, stock_code: str):
     return templates.TemplateResponse(

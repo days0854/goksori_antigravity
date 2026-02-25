@@ -26,6 +26,8 @@ from .tasks.stocks_task import run_update
 
 scheduler = BackgroundScheduler()
 
+from fastapi import BackgroundTasks
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 시작 시 실행
@@ -137,3 +139,11 @@ async def stock_detail(request: Request, stock_code: str):
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.post("/api/admin/refresh")
+async def manual_refresh(background_tasks: BackgroundTasks):
+    """데이터 수집 및 분석 태스크 수동 실행"""
+    logger.info("📢 수동 업데이트 요청됨")
+    background_tasks.add_task(run_update)
+    return {"message": "Update task started in background"}

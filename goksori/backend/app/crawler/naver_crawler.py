@@ -95,8 +95,11 @@ class NaverDiscussCrawler:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
-            # 네이버 금융은 페이지별로 EUC-KR과 UTF-8이 혼재되어 있어 자동 감지 사용
-            response.encoding = response.apparent_encoding
+            # 네이버 금융은 페이지별로 EUC-KR과 UTF-8이 혼재되어 있습니다.
+            # 우선 EUC-KR로 시도하고, 깨짐방지를 위해 apparent_encoding을 참고하되 기본값은 euc-kr로 설정합니다.
+            response.encoding = 'euc-kr' 
+            if response.apparent_encoding and response.apparent_encoding.lower() == 'utf-8':
+                response.encoding = 'utf-8'
             
             return self._parse_comments(response.text, stock_code, url)
         except requests.RequestException as e:

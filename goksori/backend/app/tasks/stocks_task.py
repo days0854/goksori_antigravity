@@ -164,8 +164,12 @@ class StocksTask:
         self.db.add(new_score)
         
         # 6. 커밋
-        self.db.commit()
-        logger.info(f"✅ {stock_info.name} 업데이트 완료: 지수 {goksori_data['goksori_score']} ({len(comments_data)}개 댓글 기반)")
+        try:
+            self.db.commit()
+            logger.info(f"✅ {stock_info.name} 업데이트 완료: 지수 {goksori_data['goksori_score']} ({len(comments_data)}개 댓글 기반)")
+        except Exception as e:
+            logger.error(f"❌ {stock_info.name} DB 저장 실패: {e}")
+            self.db.rollback()
 
 def run_update():
     """스케줄러에서 호출할 함수"""

@@ -57,20 +57,19 @@ class StocksTask:
             self.db.close()
 
     def _cleanup_old_data(self, hours: float):
-        """저장 공간 확보를 위해 오래된 댓글 및 감성 결과 삭제"""
+        """저장 공간 확보를 위해 오래된 댓글 삭제 (Cascade가 감성 분석 결과도 함께 삭제)"""
         cutoff = datetime.now() - timedelta(hours=hours)
         try:
-            # CommentSentiment는 Comment를 참조하므로 먼저 삭제하거나 Cascade 필요
-            # SQLite에서 FK Cascade가 비활성일 수 있으므로 명시적으로 삭제
-            old_sentiments = self.db.query(CommentSentiment).join(Comment).filter(Comment.crawled_at < cutoff).delete(synchronize_session=False)
+            # Comment 테이블에서 삭제하면 CommentSentiment는 Cascade Delete됨
             old_comments_count = self.db.query(Comment).filter(Comment.crawled_at < cutoff).delete(synchronize_session=False)
             
-            # 고아 데이터(Orphaned sentiments)도 정리
-            orphans = self.db.query(CommentSentiment).filter(~CommentSentiment.comment_id.in_(self.db.query(Comment.id))).delete(synchronize_session=False)
+            # 고아 데이터(Orphaned sentiments)는 FK 제약 조건으로 인해 원칙적으로 발생하지 않으나
+            # 초기 전환 과정의 찌꺼기 제거를 위해 1회성으로 체크
+            self.db.query(CommentSentiment).filter(~CommentSentiment.comment_id.in_(self.db.query(Comment.id))).delete(synchronize_session=False)
             
             self.db.commit()
-            if old_comments_count > 0 or orphans > 0:
-                logger.info(f"🧹 데이터 정리 완료 (댓글 {old_comments_count}개, 고아 감성 {orphans}개 삭제)")
+            if old_comments_count > 0:
+                logger.info(f"🧹 데이터 정리 완료 (댓글 {old_comments_count}개 삭제)")
         except Exception as e:
             logger.error(f"❌ 데이터 정리 중 오류: {e}")
             self.db.rollback()

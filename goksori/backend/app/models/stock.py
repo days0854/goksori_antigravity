@@ -33,7 +33,7 @@ class Comment(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
+    stock_id = Column(Integer, ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False)
     source = Column(String(50), nullable=False, comment="출처 (naver_discuss/stockplus/etc)")
     content = Column(Text, nullable=False, comment="댓글 내용")
     author = Column(String(100), nullable=True, comment="작성자")
@@ -57,7 +57,7 @@ class CommentSentiment(Base):
     __tablename__ = "comment_sentiments"
 
     id = Column(Integer, primary_key=True, index=True)
-    comment_id = Column(Integer, ForeignKey("comments.id"), unique=True, nullable=False)
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), unique=True, nullable=False)
     score = Column(Float, nullable=False, comment="감성 점수 (-1.0 ~ 1.0, 양수=긍정)")
     label = Column(String(20), nullable=False, comment="긍정/부정/중립")
     confidence = Column(Float, nullable=True, comment="분석 신뢰도 (0~1)")
@@ -71,7 +71,7 @@ class SentimentScore(Base):
     __tablename__ = "sentiment_scores"
 
     id = Column(Integer, primary_key=True, index=True)
-    stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
+    stock_id = Column(Integer, ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False)
     score = Column(Float, nullable=False, comment="종합 감성 점수 (0~100)")
     positive_count = Column(Integer, default=0, comment="긍정 댓글 수")
     negative_count = Column(Integer, default=0, comment="부정 댓글 수")

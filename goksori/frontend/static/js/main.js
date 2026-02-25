@@ -178,6 +178,12 @@ const Render = {
     const langSuffix = isEn ? '' : '개';
     const scoreSuffix = isEn ? ' pts' : '점';
 
+    const hot = stocks.filter(s => s.goksori_score >= 60).length;
+    const cold = stocks.filter(s => s.goksori_score < 20).length;
+    const avg = stocks.length > 0
+      ? (stocks.reduce((acc, s) => acc + s.goksori_score, 0) / stocks.length).toFixed(1)
+      : '0.0';
+
     document.getElementById('statTotal').textContent = total;
     document.getElementById('statHot').textContent = `${hot}${langSuffix}`;
     document.getElementById('statCold').textContent = `${cold}${langSuffix}`;

@@ -79,9 +79,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 정적 파일 / 템플릿
-BASE_DIR = Path(__file__).parent.parent.parent
-FRONTEND_DIR = BASE_DIR / "frontend"
+# 정적 파일 / 템플릿 경로 탐색 (로컬/서버 구조 대응)
+def discover_frontend_dir():
+    current_file_path = Path(__file__).resolve()
+    # 후보 1: goksori/backend/app/main.py -> goksori/frontend
+    cand1 = current_file_path.parent.parent.parent / "frontend"
+    # 후보 2: app/main.py -> ../frontend
+    cand2 = current_file_path.parent.parent / "frontend"
+    # 후보 3: main.py -> ./frontend
+    cand3 = current_file_path.parent / "frontend"
+    
+    for cand in [cand1, cand2, cand3]:
+        if cand.exists() and cand.is_dir():
+            logger.info(f"📁 Frontend directory discovered: {cand}")
+            return cand
+    
+    # Fallback
+    logger.warning("⚠️ Frontend directory not found automatically. Using default.")
+    return Path(__file__).parent.parent.parent / "frontend"
+
+FRONTEND_DIR = discover_frontend_dir()
 
 app.mount(
     "/static",

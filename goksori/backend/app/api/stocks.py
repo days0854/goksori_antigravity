@@ -117,11 +117,19 @@ async def get_stocks(
 
     stocks_data = [_transform_stock_data(s, sc) for s, sc in results]
 
+    # 시장 통합 지수 계산 (평균 곡소리 점수)
+    market_index = 0.0
+    scores_query = db.query(func.avg(SentimentScore.score)).filter(SentimentScore.score > 0)
+    avg_score = scores_query.scalar()
+    if avg_score is not None:
+        market_index = round(float(avg_score), 1)
+
     return {
         "total": total,
         "page": page,
         "size": size,
         "stocks": stocks_data,
+        "market_index": market_index,
     }
 
 

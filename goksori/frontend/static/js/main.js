@@ -207,6 +207,108 @@ const Render = {
   },
 };
 
+// ── 게이지 모듈 ─────────────────────────────────────────────────────────────
+const GaugeModule = {
+  instance: null,
+  currentScore: 0,
+
+  init() {
+    const canvas = document.getElementById('marketGauge');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    this.instance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [20, 20, 20, 20, 20],
+          backgroundColor: [
+            '#26d97f', // 매우 안정
+            '#4f8ef7', // 안정
+            '#f5a623', // 보통
+            '#f07030', // 공포
+            '#f05060'  // 극심한 공포
+          ],
+          borderWidth: 0,
+          circumference: 180,
+          rotation: -90,
+          cutout: '80%'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false }
+        },
+        animation: {
+          duration: 1500,
+          easing: 'easeOutQuart'
+        }
+      },
+      plugins: [{
+        id: 'needle',
+        afterDraw: (chart) => {
+          this.drawNeedle(chart);
+        }
+      }]
+    });
+  },
+
+  drawNeedle(chart) {
+    const { ctx, chartArea: { left, right, bottom } } = chart;
+    const score = this.currentScore || 0;
+    const angle = Math.PI + (score / 100) * Math.PI;
+    const cx = (left + right) / 2;
+    const cy = bottom;
+    const radius = (right - left) / 2 * 0.8;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    // 바늘 (보강된 디자인)
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(radius, 0);
+    ctx.lineTo(0, 3);
+    ctx.fillStyle = '#e8eaf0';
+    ctx.fill();
+
+    // 중심축
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8eaf0';
+    ctx.fill();
+    ctx.restore();
+  },
+
+  update(score) {
+    this.currentScore = score;
+    if (this.instance) {
+      this.instance.update();
+    }
+
+    const valEl = document.getElementById('marketIndexVal');
+    const statusEl = document.getElementById('marketStatusText');
+    if (valEl) valEl.textContent = score.toFixed(1);
+
+    if (statusEl) {
+      const isEn = document.documentElement.lang === 'en';
+      let status = '';
+      if (score >= 80) status = isEn ? '💀 Extreme Fear (Opportunity)' : '💀 극심한 공포 (강력 매수 찬스)';
+      else if (score >= 60) status = isEn ? '😨 Fear (Panic Selling)' : '😨 공포 (패닉 셀링 진행 중)';
+      else if (score >= 40) status = isEn ? '😐 Neutral' : '😐 보통';
+      else if (score >= 20) status = isEn ? '😊 Calm' : '😊 안정';
+      else status = isEn ? '😌 Very Calm (Greed)' : '😌 매우 안정 (탐욕 주의)';
+
+      statusEl.textContent = status;
+    }
+  }
+};
+
 // ── 데이터 로딩 ────────────────────────────────────────────────────────────
 async function loadStocks() {
   document.getElementById('loadingState').style.display = 'flex';
@@ -223,6 +325,11 @@ async function loadStocks() {
     Render.stockGrid(data.stocks);
     Render.statsBar(data.stocks, data.total);
     Render.pagination(data.total, State.currentPage, State.pageSize);
+
+    // 시장 게이지 업데이트
+    if (data.market_index !== undefined) {
+      GaugeModule.update(data.market_index);
+    }
 
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('stockGrid').style.display = 'flex';
@@ -525,6 +632,7 @@ function scheduleAutoRefresh() {
 
 // ── 초기화 ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  GaugeModule.init();
   Modal.init();
   KakaoShare.init();
   bindEvents();
